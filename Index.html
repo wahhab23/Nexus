@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEXUS AI</title>
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;background:#050b16;color:#eafaff;
+font-family:Arial,sans-serif;
+min-height:100vh;
+}
+.app{
+max-width:550px;margin:auto;padding:22px;
+min-height:100vh;display:flex;flex-direction:column;
+}
+header{text-align:center;padding:25px 0}
+.logo{
+width:95px;height:95px;margin:auto;
+border:2px solid #00dfff;border-radius:50%;
+display:grid;place-items:center;
+font-size:42px;color:#00eaff;
+box-shadow:0 0 30px #00dfff66;
+}
+h1{color:#00eaff;letter-spacing:9px;margin:15px 0 5px}
+.sub{color:#718da5;font-size:11px;letter-spacing:3px}
+.status{color:#00e69a;font-size:12px;margin-top:17px}
+.chat{
+flex:1;min-height:300px;max-height:55vh;
+overflow-y:auto;background:#0a1727;
+border:1px solid #173b54;
+border-radius:15px;padding:14px;
+}
+.msg{
+padding:12px;margin:10px 0;
+border-radius:12px;line-height:1.5;
+white-space:pre-wrap;
+}
+.bot{background:#102b40}
+.user{background:#07435b;text-align:right}
+.controls{display:flex;gap:8px;margin-top:15px}
+input{
+flex:1;min-width:0;padding:15px;
+background:#101e30;color:white;
+border:1px solid #17617c;border-radius:10px;
+font-size:15px;
+}
+button{
+border:0;border-radius:10px;
+padding:12px;background:#00c9ef;
+color:#00121b;font-weight:bold;
+}
+.voice{
+margin-top:10px;width:100%;
+background:#102b40;color:#00eaff;
+}
+footer{text-align:center;color:#526b80;font-size:11px;margin-top:22px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<div class="logo">N</div>
+<h1>NEXUS</h1>
+<div class="sub">FUTURISTIC AI ASSISTANT</div>
+<div class="status">● SYSTEM ONLINE</div>
+</header>
+
+<div class="chat" id="chat">
+<div class="msg bot">
+Hello! I am NEXUS.
+
+Your intelligent AI assistant is ready. How can I help you?
+</div>
+</div>
+
+<div class="controls">
+<input id="input" placeholder="Talk to NEXUS...">
+<button onclick="sendMessage()">SEND</button>
+</div>
+
+<button class="voice" onclick="speakLast()">🔊 REPEAT LAST RESPONSE</button>
+
+<footer>NEXUS AI · INTELLIGENCE REDEFINED</footer>
+</div>
+
+<script>
+let history=[];
+let lastResponse="Hello! I am NEXUS. How can I help you?";
+
+function addMessage(text,type){
+const chat=document.getElementById("chat");
+const div=document.createElement("div");
+div.className="msg "+type;
+div.textContent=text;
+chat.appendChild(div);
+chat.scrollTop=chat.scrollHeight;
+}
+
+async function sendMessage(){
+const input=document.getElementById("input");
+const message=input.value.trim();
+if(!message)return;
+
+input.value="";
+addMessage(message,"user");
+
+history.push({role:"user",parts:[{text:message}]});
+
+const loading=document.createElement("div");
+loading.className="msg bot";
+loading.textContent="NEXUS is thinking...";
+document.getElementById("chat").appendChild(loading);
+
+try{
+const response=await fetch("/.netlify/functions/chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({history})
+});
+
+const data=await response.json();
+loading.remove();
+
+if(!response.ok)throw new Error(data.error||"AI connection failed");
+
+lastResponse=data.reply;
+history.push({role:"model",parts:[{text:data.reply}]});
+addMessage(data.reply,"bot");
+
+if("speechSynthesis" in window){
+speechSynthesis.cancel();
+const speech=new SpeechSynthesisUtterance(data.reply);
+speech.lang="en-US";
+speechSynthesis.speak(speech);
+}
+}catch(error){
+loading.remove();
+history.pop();
+addMessage("Connection error: "+error.message,"bot");
+}
+}
+
+function speakLast(){
+if(!("speechSynthesis" in window)){
+alert("Voice is not supported.");
+return;
+}
+speechSynthesis.cancel();
+const speech=new SpeechSynthesisUtterance(lastResponse);
+speech.lang="en-US";
+speechSynthesis.speak(speech);
+}
+
+document.getElementById("input").addEventListener("keydown",e=>{
+if(e.key==="Enter")sendMessage();
+});
+</script>
+</body>
+</html>
